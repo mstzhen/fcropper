@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>前端剪切图片插件</title>
+    <link rel="stylesheet" type="text/css" href="index.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <style type="text/css">
+    .cropper-container {
+        width: 100%;
+        height: 100%;
+    }
+
+    .cropper-crop-box {
+        width: 100px;
+        height: 100px;
+        z-index: 999;
+    }
+
+    * {
+        touch-action: none;
+                user-select: none;
+    }
+
+    #upload .cropper-move,
+    #upload .point-se {
+        -webkit-touch-callout: none;
+        /* iOS Safari */
+        -webkit-user-select: none;
+        /* Safari */
+        -khtml-user-select: none;
+        /* Konqueror HTML */
+        -moz-user-select: none;
+        /* Firefox */
+        -ms-user-select: none;
+        /* Internet Explorer/Edge */
+        user-select: none;
+        /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+    }
+
+    #upload {
+        width: 400px;
+        height: 200px;
+        position: relative;
+    }
+
+    #upload img {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+    }
+    .cropper-crop-box{
+        overflow: hidden;
+    }
+    </style>
+</head>
+
+<body>
+    <input type="file" id="file" name="myfile" accept="image/x-png, image/jpg, image/jpeg, image/gif" />
+    <div id="upload"></div>
+    <button id="clip">确定</button>
+    <button id="rotate">旋转</button>
+    <script type="text/javascript" src="fcropper.js"></script>
+    <script type="text/javascript">
+    //上传图片
+    var fileDom = document.querySelector('#file');
+    fileDom.addEventListener("change", function() {
+        html5Reader(this);
+    })
+
+    function html5Reader(file) {
+        var file = file.files[0];
+        var reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = function(e) {
+          console.log(fCropper);
+            //需要在回调函数中调用
+            new fCropper(this.result, {
+                callBack: function(blog) {
+                    console.log(blog);
+                }
+            });
+        }
+    }
+    //动态创建一个类，晚上一个类
+    var createClass = function() {
+        function defineProperties(target, props) {
+            for (var i = 0; i < props.length; i++) {
+                var descriptor = props[i];
+                descriptor.enumerable = descriptor.enumerable || false;
+                descriptor.configurable = true;
+                if ("value" in descriptor) descriptor.writable = true;
+                Object.defineProperty(target, descriptor.key, descriptor);
+            }
+        }
+
+        return function(Constructor, protoProps, staticProps) {
+            if (protoProps) defineProperties(Constructor.prototype, protoProps);
+            if (staticProps) defineProperties(Constructor, staticProps);
+            return Constructor;
+        };
+    }();
+    
+    </script>
+</body>
+
+</html>
