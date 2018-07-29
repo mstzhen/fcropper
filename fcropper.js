@@ -13,6 +13,11 @@
         (global.fCropper = factory());
 }(this, (function() {
     'use strict';
+    var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function(obj) {
+        return typeof obj;
+    } : function(obj) {
+        return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+    };
 
     function isObject(value) {
         return (typeof value === 'undefined' ? 'undefined' : _typeof(value)) === 'object' && value !== null;
@@ -35,14 +40,14 @@
         return obj;
     };
 
-    function addEvent(dom,type,handler) {
+    function addEvent(dom, type, handler) {
         if (window.addEventListener) { // Mozilla, Netscape, Firefox 
             dom.addEventListener(type, handler);
         } else if (window.attachEvent) { // IE 
-        	console.log(type,7878);
-            dom.attachEvent("on"+type, handler);
+            console.log(type, 7878);
+            dom.attachEvent("on" + type, handler);
         } else {
-            dom["on"+type] = handler;
+            dom["on" + type] = handler;
         }
     }
 
@@ -247,7 +252,7 @@
             }
             //统一添加事件
             function addListener(element, type, listener) {
-           
+
                 type.trim().split(" ").forEach(function(event) {
                     addEvent(element, event, listener)
                 });
