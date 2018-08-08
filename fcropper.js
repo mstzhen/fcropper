@@ -36,7 +36,6 @@
                 }
             });
         }
-
         return obj;
     };
 
@@ -44,21 +43,86 @@
         if (window.addEventListener) { // Mozilla, Netscape, Firefox 
             dom.addEventListener(type, handler);
         } else if (window.attachEvent) { // IE 
-            console.log(type, 7878);
             dom.attachEvent("on" + type, handler);
         } else {
             dom["on" + type] = handler;
         }
     }
 
+    function $$(tag) {
+        return document.querySelector(tag);
+    }
+    //base64转为二进制数据，后端可直接利用
+    function convertBase64UrlToBlob(urlData, callBack) {
+        var arr = urlData.split(','),
+            mime = arr[0].match(/:(.*?);/)[1],
+            bstr = atob(arr[1]),
+            n = bstr.length,
+            u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        callBack(new Blob([u8arr], { type: mime }));
+    }
+    //全局常量
+    var REGEXP_3D = /translate3d\((-?\d+\.*\d*)px,\s*(-?\d+\.*\d*)px,\s*(\d+)px\)/i;
+    var EVENT_POINTER_DOWN = 'touchstart mousedown';
+    var EVENT_POINTER_MOVE = 'touchmove mousemove';
+    var EVENT_POINTER_UP = 'touchend touchcancel mouseup';
+
+    function getTransform(selector) {
+        var domStyleTransform = $$(selector).querySelector(".cropper-crop-box").style.transform;
+
+        var x = domStyleTransform.match(REGEXP_3D)[1] ? domStyleTransform.match(REGEXP_3D)[1] : 0;
+        var y = domStyleTransform.match(REGEXP_3D)[2] ? domStyleTransform.match(REGEXP_3D)[2] : 0;
+
+        return {
+            x: x,
+            y: y
+        }
+    }
+
+    function whichTouch(e) {
+        if (e.touches) {
+            var touch = e.touches[0];
+        } else {
+            var touch = e;
+        }
+        return touch;
+    }
+
+    function getDomWidthHeight(selector) {
+        var domStyle = $$(selector).querySelector(".cropper-crop-box").style;
+        var h = domStyle.height;
+        var w = domStyle.width;
+        return {
+            h: h,
+            w: w
+        }
+    }
+    //统一添加事件
+    function addListener(element, type, listener) {
+
+        type.trim().split(" ").forEach(function(event) {
+            addEvent(element, event, listener)
+        });
+    }
+
+    function defaultDoc(obj) {
+        var res = window.document;
+        if (typeof window.ontouchstart === "object") {
+            res = obj;
+        }
+        return res;
+    }
+
     function fCropper(base64) {
         var options = (typeof arguments[1] === "object") ? arguments[1] : "";
         this.DEFAULTS = {
             compressQuerlity: 0.6, //压缩质量
-            doc: window.document,
-            selector: "#upload",
+            upload: "#upload",
             clip: "#clip",
-            percent: 0.5,
+            percent: 0.5, //位置百分比
             callBack: function(blog) {
                 console.log(blog);
             }
@@ -72,58 +136,12 @@
         this.init(base64);
 
     }
-    fCropper.prototype = {
-        $$: function(tag) {
-            return document.querySelector(tag);
-        },
-        getTransform: function() {
-            var transformDom = this.$$(this.DEFAULTS.selector).querySelector(".cropper-crop-box");
-            var x = transformDom.style.transform.match(/translate3d\((-?\d+)px,\s*(-?\d+)px,\s*(\d+)px\)/i)[1] ? transformDom.style.transform.match(/translate3d\((-?\d+)px,\s*(-?\d+)px,\s*(\d+)px\)/i)[1] : 0;
-            var y = transformDom.style.transform.match(/translate3d\((-?\d+)px,\s*(-?\d+)px,\s*(\d+)px\)/i)[2] ? transformDom.style.transform.match(/translate3d\((-?\d+)px,\s*(-?\d+)px,\s*(\d+)px\)/i)[2] : 0;
 
-            return {
-                x: x,
-                y: y
-            }
-        },
-        whichTouch: function(e) {
-            var touch;
-            if (e.touches) {
-                touch = e.touches[0];
-            } else {
-                touch = e;
-            }
-            return touch;
-        },
-        getWidthHeight: function() {
-            var transformDom = this.$$(this.DEFAULTS.selector).querySelector(".cropper-crop-box");
-            var h = transformDom.style.height;
-            var w = transformDom.style.width;
-            return {
-                h: h,
-                w: w
-            }
-        },
-        //base64转为二进制数据，后端可直接利用
-        convertBase64UrlToBlob: function(urlData) {
-            var arr = urlData.split(','),
-                mime = arr[0].match(/:(.*?);/)[1],
-                bstr = atob(arr[1]),
-                n = bstr.length,
-                u8arr = new Uint8Array(n);
-            while (n--) {
-                u8arr[n] = bstr.charCodeAt(n);
-            }
-            this.DEFAULTS.callBack(new Blob([u8arr], { type: mime }));
-        },
+    fCropper.prototype = {
         init: function(base64) {
             this.ready(base64);
         },
         ready: function(base64) {
-            var EVENT_POINTER_DOWN = 'touchstart mousedown';
-            var EVENT_POINTER_MOVE = 'touchmove mousemove';
-            var EVENT_POINTER_UP = 'touchend touchcancel mouseup';
-
 
             var transformX, //保存transformX样式属性的x
                 transformY, //保存transformX样式属性的y
@@ -131,7 +149,7 @@
                 startY, //保存开始拖动的开始位置Y
                 noMove = false, //是否允许拖动
                 noPoint = false, //是否允许扩大选取
-                computedimgWH = window.getComputedStyle(this.$$(this.DEFAULTS.selector), null),
+                computedimgWH = window.getComputedStyle($$(this.DEFAULTS.upload), null),
                 _this = this;
 
             //初始化模板
@@ -164,17 +182,17 @@
             var moveAreaStart = function(e) {
                 //记录当前位置
                 noMove = true;
-                var touch = _this.whichTouch(e);
+                var touch = whichTouch(e);
                 startY = touch.clientY;
                 startX = touch.clientX;
                 //获取当前的transform
-                transformX = _this.getTransform().x;
-                transformY = _this.getTransform().y;
+                transformX = getTransform(_this.DEFAULTS.upload).x;
+                transformY = getTransform(_this.DEFAULTS.upload).y;
             }　
             var moveAreaMove = function(e) {
                 if (noMove) {
-                    var transformDom = _this.$$(_this.DEFAULTS.selector).querySelector(".cropper-crop-box");
-                    var touch = _this.whichTouch(e);
+                    var transformDom = $$(_this.DEFAULTS.upload).querySelector(".cropper-crop-box");
+                    var touch = whichTouch(e);
                     //手势滑动的距离
                     var pageX = touch.clientX - startX;
                     var pageY = touch.clientY - startY;
@@ -189,35 +207,26 @@
                     xx = xx < 0 ? Math.max(xx, 0) : Math.min(xx, maxX);
                     yy = yy < 0 ? Math.max(yy, 0) : Math.min(yy, maxY);
                     //背景图片移动
-                    var imgBack = _this.$$(_this.DEFAULTS.selector).querySelector(".cropper-view-box img");
+                    var imgBack = $$(_this.DEFAULTS.upload).querySelector(".cropper-view-box img");
                     imgBack.style.transform = `translate3d(${-xx}px, ${-yy}px, 0px)`;
 
                     var transform = `translate3d(${xx}px, ${yy}px, 0px)`;
                     transformDom.style.transform = transform;
-
-
                 }
             }
 
             var moveAreaEnd = function(e) {
                 noMove = false;
                 //记录结束滑动之后的左上角横坐标和纵坐标
-                leftTopx = _this.getTransform().x;
-                leftTopy = _this.getTransform().y;
+                leftTopx = getTransform(_this.DEFAULTS.upload).x;
+                leftTopy = getTransform(_this.DEFAULTS.upload).y;
 
             }
 
-            function defaultDoc(obj) {
-                var res = _this.DEFAULTS.doc;
-                if (typeof window.ontouchstart === "object") {
-                    res = obj;
-                }
-                return res;
-            }
 
             var pointStart = function(e) {
                 noPoint = true;
-                var touch = _this.whichTouch(e);
+                var touch = whichTouch(e);
                 //再次记录开始移动位置
                 startY = touch.clientY;
                 startX = touch.clientX;
@@ -225,8 +234,8 @@
 
             var pointMove = function(e) {
                 if (noPoint) {
-                    var transformDom = _this.$$(_this.DEFAULTS.selector).querySelector(".cropper-crop-box");
-                    var touch = _this.whichTouch(e);
+                    var transformDom = $$(_this.DEFAULTS.upload).querySelector(".cropper-crop-box");
+                    var touch = whichTouch(e);
                     //记录偏移量
                     var pageX = touch.clientX - startX;
                     var pageY = touch.clientY - startY;
@@ -246,17 +255,11 @@
             var pointEnd = function(e) {
                 noPoint = false;
                 //宽度变化之后move框的大小
-                lastw = parseInt(_this.getWidthHeight().w);
-                lasth = parseInt(_this.getWidthHeight().h);
+                lastw = parseInt(getDomWidthHeight(_this.DEFAULTS.upload).w);
+                lasth = parseInt(getDomWidthHeight(_this.DEFAULTS.upload).h);
 
             }
-            //统一添加事件
-            function addListener(element, type, listener) {
 
-                type.trim().split(" ").forEach(function(event) {
-                    addEvent(element, event, listener)
-                });
-            }
             //初始化渲染和事件绑定
             function rederAndBind(base64) {
                 var img = new Image();
@@ -268,9 +271,8 @@
                 var oldCropper = tempDiv.querySelector(".cropper-crop-box");
                 container.replaceChild(cropper, oldCropper);
 
-
+                //添加事件
                 var moveArea = tempDiv.querySelector(".cropper-move");
-
                 addListener(moveArea, EVENT_POINTER_DOWN, moveAreaStart);
                 addListener(defaultDoc(moveArea), EVENT_POINTER_MOVE, moveAreaMove);
                 addListener(defaultDoc(moveArea), EVENT_POINTER_UP, moveAreaEnd);
@@ -279,16 +281,17 @@
                 addListener(pointSe, EVENT_POINTER_DOWN, pointStart);
                 addListener(defaultDoc(pointSe), EVENT_POINTER_MOVE, pointMove);
                 addListener(defaultDoc(pointSe), EVENT_POINTER_UP, pointEnd);
-                var oldImg = _this.$$(_this.DEFAULTS.selector).firstChild;
+                var oldImg = $$(_this.DEFAULTS.upload).firstChild;
 
-                var oldContainer = _this.$$(_this.DEFAULTS.selector).lastChild;
+                var oldContainer = $$(_this.DEFAULTS.upload).lastChild;
+                //渲染
                 if (oldImg) {
-                    _this.$$(_this.DEFAULTS.selector).replaceChild(img, oldImg);
-                    _this.$$(_this.DEFAULTS.selector).replaceChild(container, oldContainer);
+                    $$(_this.DEFAULTS.upload).replaceChild(img, oldImg);
+                    $$(_this.DEFAULTS.upload).replaceChild(container, oldContainer);
 
                 } else {
-                    _this.$$(_this.DEFAULTS.selector).appendChild(img);
-                    _this.$$(_this.DEFAULTS.selector).appendChild(container);
+                    $$(_this.DEFAULTS.upload).appendChild(img);
+                    $$(_this.DEFAULTS.upload).appendChild(container);
 
                 }
 
@@ -300,10 +303,10 @@
                 if (!_this.bbb) {
                     return;
                 }
-                var sWidth = parseInt(_this.getWidthHeight().w);
-                var sHeight = parseInt(_this.getWidthHeight().h);
-                var srcX = _this.getTransform().x;
-                var srcY = _this.getTransform().y;
+                var sWidth = parseInt(getDomWidthHeight(_this.DEFAULTS.upload).w);
+                var sHeight = parseInt(getDomWidthHeight(_this.DEFAULTS.upload).h);
+                var srcX = getTransform(_this.DEFAULTS.upload).x;
+                var srcY = getTransform(_this.DEFAULTS.upload).y;
 
                 var canvas1 = document.createElement("canvas");
                 var cxt1 = canvas1.getContext("2d");
@@ -343,13 +346,13 @@
                         // quality值越小，所绘制出的图像越模糊
                         var base64 = canvas.toDataURL('image/jpeg', _this.DEFAULTS.compressQuerlity);
                         // 回调函数返回base64的值
-                        _this.convertBase64UrlToBlob(base64);
+                        convertBase64UrlToBlob(base64, _this.DEFAULTS.callBack);
                     }
 
                 }
             }
-            this.$$(this.DEFAULTS.selector).querySelector(".cropper-crop-box").addEventListener("dblclick", clip);
-            this.$$(this.DEFAULTS.clip).addEventListener("click", clip);
+            $$(this.DEFAULTS.upload).querySelector(".cropper-crop-box").addEventListener("dblclick", clip);
+            $$(this.DEFAULTS.clip).addEventListener("click", clip);
 
         }
 
